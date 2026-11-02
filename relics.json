@@ -1,0 +1,76 @@
+{
+  "_info": "Pour ajouter une relique : copier un bloc dans 'relics'. Les sets sont détectés à partir des champs 'prime' et 'part' des items. Les taux sont en % PAR ITEM de chaque rareté.",
+  "refinements": {
+    "intact":      { "label": "Intact (0 traces)",        "common": 25.3333, "uncommon": 11, "rare": 2 },
+    "exceptional": { "label": "Exceptional (25 traces)",  "common": 23.3333, "uncommon": 13, "rare": 4 },
+    "flawless":    { "label": "Flawless (50 traces)",     "common": 20,      "uncommon": 17, "rare": 6 },
+    "radiant":     { "label": "Radiant (100 traces)",     "common": 16.6667, "uncommon": 20, "rare": 10 }
+  },
+  "methods": {
+    "4b4": { "label": "4b4 : les 4 ouvrent leur relique", "draws": 4, "openingsPerRelic": 1 },
+    "2b2": { "label": "2b2 : 2 puis 2 (1 relique pour 2 ouvertures)", "draws": 2, "openingsPerRelic": 2 }
+  },
+  "relics": [
+    {
+      "name": "Lith S17",
+      "defaultMethod": "4b4",
+      "items": [
+        { "name": "Forma Blueprint", "rarity": "common" },
+        { "name": "Paris Prime Lower Limb", "rarity": "common", "prime": "Paris", "part": "Lower Limb" },
+        { "name": "Spira Prime Blueprint", "rarity": "common", "prime": "Spira", "part": "Blueprint" },
+        { "name": "Braton Prime Blueprint", "rarity": "uncommon", "prime": "Braton", "part": "Blueprint" },
+        { "name": "Nidus Prime Blueprint", "rarity": "uncommon", "prime": "Nidus", "part": "Blueprint" },
+        { "name": "Saryn Prime Chassis Blueprint", "rarity": "rare", "prime": "Saryn", "part": "Chassis" }
+      ]
+    },
+    {
+      "name": "Meso M5",
+      "defaultMethod": "4b4",
+      "defaultRefinement": "intact",
+      "items": [
+        { "name": "Braton Prime Stock", "rarity": "common", "prime": "Braton", "part": "Stock" },
+        { "name": "Forma Blueprint", "rarity": "common" },
+        { "name": "Saryn Prime Systems Blueprint", "rarity": "common", "prime": "Saryn", "part": "Systems" },
+        { "name": "Spira Prime Blade", "rarity": "uncommon", "prime": "Spira", "part": "Blade" },
+        { "name": "Strun Prime Stock", "rarity": "uncommon", "prime": "Strun", "part": "Stock" },
+        { "name": "Magnus Prime Barrel", "rarity": "rare", "prime": "Magnus", "part": "Barrel" }
+      ]
+    },
+    {
+      "name": "Neo S19",
+      "defaultMethod": "2b2",
+      "items": [
+        { "name": "Forma Blueprint", "rarity": "common" },
+        { "name": "Paris Prime Blueprint", "rarity": "common", "prime": "Paris", "part": "Blueprint" },
+        { "name": "Strun Prime Receiver", "rarity": "common", "prime": "Strun", "part": "Receiver" },
+        { "name": "Nidus Prime Neuroptics Blueprint", "rarity": "uncommon", "prime": "Nidus", "part": "Neuroptics" },
+        { "name": "Saryn Prime Neuroptics Blueprint", "rarity": "uncommon", "prime": "Saryn", "part": "Neuroptics" },
+        { "name": "Strun Prime Blueprint", "rarity": "rare", "prime": "Strun", "part": "Blueprint" }
+      ]
+    },
+    {
+      "name": "Neo N19",
+      "defaultMethod": "4b4",
+      "items": [
+        { "name": "Braton Prime Receiver", "rarity": "common", "prime": "Braton", "part": "Receiver" },
+        { "name": "Forma Blueprint", "rarity": "common" },
+        { "name": "Nidus Prime Systems Blueprint", "rarity": "common", "prime": "Nidus", "part": "Systems" },
+        { "name": "Magnus Prime Receiver", "rarity": "uncommon", "prime": "Magnus", "part": "Receiver" },
+        { "name": "Paris Prime Upper Limb", "rarity": "uncommon", "prime": "Paris", "part": "Upper Limb" },
+        { "name": "Nikana Prime Hilt", "rarity": "rare", "prime": "Nikana", "part": "Hilt" }
+      ]
+    },
+    {
+      "name": "Axi N12",
+      "defaultMethod": "4b4",
+      "items": [
+        { "name": "Forma Blueprint", "rarity": "common" },
+        { "name": "Nikana Prime Blueprint", "rarity": "common", "prime": "Nikana", "part": "Blueprint" },
+        { "name": "Paris Prime String", "rarity": "common", "prime": "Paris", "part": "String" },
+        { "name": "Saryn Prime Blueprint", "rarity": "uncommon", "prime": "Saryn", "part": "Blueprint" },
+        { "name": "Strun Prime Barrel", "rarity": "uncommon", "prime": "Strun", "part": "Barrel" },
+        { "name": "Nidus Prime Chassis Blueprint", "rarity": "rare", "prime": "Nidus", "part": "Chassis" }
+      ]
+    }
+  ]
+}
