@@ -25,6 +25,18 @@ function partKey(prime, part) {
   return prime + "|" + part;
 }
 
+/**
+ * Nombre d'exemplaires d'une pièce nécessaires pour construire un set.
+ * @param {Object|null} sets composition des sets, { "Prime": { "Pièce": n } }.
+ * @param {string} prime nom du set (ex. "Akstiletto").
+ * @param {string} part nom de la pièce (ex. "Barrel").
+ * @returns {number} la quantité (1 si la composition est inconnue).
+ */
+function partQuantity(sets, prime, part) {
+  const q = sets && sets[prime] ? Number(sets[prime][part]) : NaN;
+  return q >= 1 ? Math.floor(q) : 1;
+}
+
 function buildItems(relic, refinement) {
   const items = relic.items.map(function (it) {
     return Object.assign({}, it, { w: Number(refinement[it.rarity]) || 0 });
@@ -107,10 +119,13 @@ function planSimulation(data, cfg) {
     const parts = (cfg.parts && cfg.parts[prime]) || catalog[prime];
     if (!parts) return;
     parts.forEach(function (part) {
+      // cfg.sets (optionnel) : composition des sets, pour les pièces en plusieurs exemplaires.
+      const perSet = partQuantity(cfg.sets, prime, part);
       wanted[partKey(prime, part)] = {
         prime: prime,
         part: part,
-        target: cfg.targets[prime],
+        perSet: perSet,
+        target: cfg.targets[prime] * perSet,
         sources: [],
         missing: false,
       };
@@ -128,11 +143,14 @@ function planSimulation(data, cfg) {
     };
   });
 
-  // Toutes les reliques qui contiennent une pièce voulue sont des sources de cette pièce.
+  // Les reliques qui contiennent une pièce voulue sont des sources de cette pièce.
+  // cfg.sources (optionnel) restreint les sources : { "Prime|Pièce": [reliques] }.
   data.relics.forEach(function (r) {
     tables[r.name].items.forEach(function (it) {
       if (!it.prime) return;
       const k = partKey(it.prime, it.part);
+      const allowed = cfg.sources && cfg.sources[k];
+      if (allowed && allowed.indexOf(r.name) === -1) return;
       if (wanted[k] && wanted[k].sources.indexOf(r.name) === -1)
         wanted[k].sources.push(r.name);
     });
@@ -141,12 +159,11 @@ function planSimulation(data, cfg) {
   Object.keys(wanted).forEach(function (k) {
     if (!wanted[k].sources.length) {
       wanted[k].missing = true;
+      const label = wanted[k].prime + " " + wanted[k].part;
       warnings.push(
-        "Aucune relique du JSON ne contient " +
-          wanted[k].prime +
-          " " +
-          wanted[k].part +
-          ".",
+        cfg.sources && cfg.sources[k]
+          ? "Aucune relique sélectionnée pour " + label + "."
+          : "Aucune relique du JSON ne contient " + label + ".",
       );
     }
   });
@@ -156,10 +173,8 @@ function planSimulation(data, cfg) {
       return r.name;
     })
     .filter(function (n) {
-      return tables[n].items.some(function (it) {
-        if (!it.prime) return false;
-        const w = wanted[partKey(it.prime, it.part)];
-        return w && !w.missing;
+      return Object.keys(wanted).some(function (k) {
+        return wanted[k].sources.indexOf(n) !== -1;
       });
     });
 
@@ -233,9 +248,12 @@ function runSimulation(data, cfg, rng) {
       const k = keyIdx[partKey(it.prime, it.part)];
       return k === undefined ? -1 : k;
     });
+    // Pièces pour lesquelles cette relique a été choisie comme source
+    // (une pièce voulue tombée d'une autre relique reste récupérable).
     const useful = [];
     itemK.forEach(function (k, i) {
-      if (k >= 0) useful.push(i);
+      if (k >= 0 && plan.wanted[keys[k]].sources.indexOf(name) !== -1)
+        useful.push(i);
     });
     return {
       name: name,
@@ -423,6 +441,7 @@ function runSimulation(data, cfg, rng) {
       prime: w.prime,
       part: w.part,
       sources: w.sources,
+      perSet: w.perSet,
       target: w.target,
       appeared: appeared,
       picked: picked,
@@ -479,6 +498,7 @@ if (typeof module !== "undefined" && module.exports) {
     catalogPrimes: catalogPrimes,
     presentKeys: presentKeys,
     defaultRefinementKey: defaultRefinementKey,
+    partQuantity: partQuantity,
   };
 }
 
@@ -487,6 +507,7 @@ if (typeof module !== "undefined" && module.exports) {
 if (typeof document !== "undefined") {
   (function () {
     let data = null;
+    let sets = null; // composition des sets (sets.json), null si non chargée
     const state = { mode: "target", rows: [], relics: {} };
 
     const $ = function (id) {
@@ -554,7 +575,7 @@ if (typeof document !== "undefined") {
           return catalog[p];
         });
         (initial.length ? initial : names.slice(0, 1)).forEach(function (p) {
-          state.rows.push({ prime: p, sets: 100, parts: defaultParts(p) });
+          state.rows.push(newRow(p));
         });
       }
       renderPrimes();
@@ -569,6 +590,72 @@ if (typeof document !== "undefined") {
         parts[part] = !!present[partKey(prime, part)];
       });
       return parts;
+    }
+
+    // choice : relique choisie pour chaque pièce, { "Pièce": "Relique" }.
+    function newRow(prime) {
+      return {
+        prime: prime,
+        sets: 100,
+        parts: defaultParts(prime),
+        choice: {},
+      };
+    }
+
+    function relicsWithPart(prime, part) {
+      return data.relics
+        .filter(function (r) {
+          return r.items.some(function (it) {
+            return it.prime === prime && it.part === part;
+          });
+        })
+        .map(function (r) {
+          return r.name;
+        });
+    }
+
+    // Relique choisie pour une pièce (la première qui la contient par défaut).
+    function chosenRelic(row, part) {
+      const names = relicsWithPart(row.prime, part);
+      return names.indexOf(row.choice[part]) !== -1
+        ? row.choice[part]
+        : names[0];
+    }
+
+    /**
+     * Libellé du nombre d'exemplaires d'une pièce par set.
+     * @param {string} prime nom du set.
+     * @param {string} part nom de la pièce.
+     * @returns {string} "x2" par exemple, ou "x?" si la composition est inconnue.
+     */
+    function quantityLabel(prime, part) {
+      const known = sets && sets[prime] && sets[prime][part];
+      return known ? "x" + partQuantity(sets, prime, part) : "x?";
+    }
+
+    function relicPicksHtml(row) {
+      let html = "";
+      Object.keys(row.parts).forEach(function (part) {
+        if (!row.parts[part]) return;
+        const names = relicsWithPart(row.prime, part);
+        if (!names.length) return;
+        html +=
+          '<label class="pick-line"><span class="pick-qty" title="Exemplaires nécessaires par set">' +
+          esc(quantityLabel(row.prime, part)) +
+          '</span><span class="pick-part">' +
+          esc(part) +
+          '</span><select data-pick="' +
+          esc(part) +
+          '">' +
+          options(
+            names.map(function (n) {
+              return [n, n];
+            }),
+            chosenRelic(row, part),
+          ) +
+          "</select></label>";
+      });
+      return html ? '<div class="relic-picks">' + html + "</div>" : "";
     }
 
     function renderPrimes() {
@@ -622,13 +709,15 @@ if (typeof document !== "undefined") {
           '<button type="button" class="secondary remove">Retirer</button>' +
           '<div class="chips">' +
           chips +
-          "</div>";
+          "</div>" +
+          relicPicksHtml(row);
 
         el.querySelector(".prime-pick").addEventListener(
           "change",
           function (e) {
             row.prime = e.target.value;
             row.parts = defaultParts(row.prime);
+            row.choice = {};
             renderPrimes();
             renderRelics();
           },
@@ -644,6 +733,13 @@ if (typeof document !== "undefined") {
         el.querySelectorAll("input[data-part]").forEach(function (cb) {
           cb.addEventListener("change", function () {
             row.parts[cb.getAttribute("data-part")] = cb.checked;
+            renderPrimes();
+            renderRelics();
+          });
+        });
+        el.querySelectorAll("select[data-pick]").forEach(function (sel) {
+          sel.addEventListener("change", function () {
+            row.choice[sel.getAttribute("data-pick")] = sel.value;
             renderRelics();
           });
         });
@@ -662,7 +758,7 @@ if (typeof document !== "undefined") {
         return used.indexOf(p) === -1;
       });
       if (!next) return;
-      state.rows.push({ prime: next, sets: 100, parts: defaultParts(next) });
+      state.rows.push(newRow(next));
       renderPrimes();
       renderRelics();
     }
@@ -687,11 +783,26 @@ if (typeof document !== "undefined") {
       return t;
     }
 
+    // Relique retenue pour chaque pièce voulue : { "Prime|Pièce": [relique] }.
+    function currentSources() {
+      const parts = currentParts();
+      const out = {};
+      state.rows.forEach(function (row) {
+        parts[row.prime].forEach(function (part) {
+          out[partKey(row.prime, part)] = [chosenRelic(row, part)];
+        });
+      });
+      return out;
+    }
+
     function activeRelicNames() {
       const targets = currentTargets();
       if (!Object.keys(targets).length) return [];
-      return planSimulation(data, { targets: targets, parts: currentParts() })
-        .relicNames;
+      return planSimulation(data, {
+        targets: targets,
+        parts: currentParts(),
+        sources: currentSources(),
+      }).relicNames;
     }
 
     function renderRelics() {
@@ -783,6 +894,49 @@ if (typeof document !== "undefined") {
       });
     }
 
+    // Explications affichées en cliquant sur une colonne marquée d'un "*".
+    const COLUMN_HELP = {
+      "Marge (95 %)":
+        "Dans 95 % des simulations, il a fallu au plus ce nombre de reliques. Pour le total, la marge est calculée sur la somme des reliques de chaque simulation.",
+      Objectif:
+        "Nombre d'exemplaires voulus pour cette pièce, c'est-à-dire le nombre de sets demandés multiplié par le nombre d'exemplaires de la pièce dans un set.",
+      Apparues: "Pièces vues dans toutes les ouvertures de l'équipe.",
+      Récupérées:
+        "Peut dépasser l'objectif : le surplus est pris quand rien d'autre n'est utile dans l'ouverture.",
+    };
+
+    function helpTh(label) {
+      return (
+        '<th class="num"><button type="button" class="th-help" aria-expanded="false" data-help="' +
+        esc(label) +
+        '">' +
+        esc(label) +
+        "*</button></th>"
+      );
+    }
+
+    function toggleColumnHelp(e) {
+      const btn = e.target.closest(".th-help");
+      if (!btn) return;
+      const box = btn.closest(".table-wrap").nextElementSibling;
+      const open = btn.getAttribute("aria-expanded") === "true";
+      btn
+        .closest("table")
+        .querySelectorAll(".th-help")
+        .forEach(function (b) {
+          b.setAttribute("aria-expanded", "false");
+        });
+      if (open) {
+        box.hidden = true;
+        return;
+      }
+      const label = btn.getAttribute("data-help");
+      box.innerHTML =
+        "<strong>" + esc(label) + "</strong> : " + esc(COLUMN_HELP[label]);
+      box.hidden = false;
+      btn.setAttribute("aria-expanded", "true");
+    }
+
     function renderResults(res) {
       const fixed = state.mode === "fixed";
       let html = "";
@@ -795,7 +949,7 @@ if (typeof document !== "undefined") {
         '<th>Relique</th><th>Raffinement</th><th>Méthode</th><th class="num">' +
         (fixed ? "Reliques" : "Moyenne") +
         "</th>" +
-        (fixed ? "" : '<th class="num">Marge (95 %)</th>') +
+        (fixed ? "" : helpTh("Marge (95 %)")) +
         "</tr></thead><tbody>";
       res.relics.forEach(function (r) {
         html +=
@@ -821,24 +975,22 @@ if (typeof document !== "undefined") {
         (fixed
           ? ""
           : '<td class="num">' + fmt(res.totals.relicsP95) + "</td>") +
-        "</tr></tbody></table></div>";
-      if (!fixed) {
-        html +=
-          '<p class="hint">La marge à 95 % du total est calculée sur la somme des reliques de chaque simulation.</p>';
-      }
+        "</tr></tbody></table></div>" +
+        '<p class="help-box" hidden></p>';
 
       html +=
         '<h2 style="margin-top:18px">Pièces obtenues</h2><div class="table-wrap"><table><thead><tr>' +
-        '<th>Set</th><th>Pièce</th><th>Relique(s)</th><th class="num">Objectif</th>' +
-        '<th class="num">Apparues</th><th class="num">Récupérées</th><th class="num">Perdues (loot or)</th><th class="num">Perdues (autres)</th></tr></thead><tbody>';
+        "<th>Set</th><th>Pièce</th>" +
+        helpTh("Objectif") +
+        helpTh("Apparues") +
+        helpTh("Récupérées") +
+        "</tr></thead><tbody>";
       res.parts.forEach(function (p) {
         html +=
           "<tr><td>" +
           esc(p.prime) +
           "</td><td>" +
           esc(p.part) +
-          "</td><td>" +
-          esc(p.sources.join(" / ")) +
           "</td>" +
           '<td class="num">' +
           fmt(p.target) +
@@ -848,22 +1000,9 @@ if (typeof document !== "undefined") {
           "</td>" +
           '<td class="num">' +
           fmt(p.picked, 1) +
-          "</td>" +
-          '<td class="num lost">' +
-          fmt(p.lostRare, 1) +
-          "</td>" +
-          '<td class="num lost">' +
-          fmt(p.lostOther, 1) +
           "</td></tr>";
       });
-      html +=
-        "</tbody></table></div>" +
-        '<ul class="hint legend">' +
-        "<li><strong>Apparues</strong> : pièces vues dans toutes les ouvertures de l'équipe.</li>" +
-        "<li><strong>Perdues</strong> : apparues mais non récupérées, car on ne choisit qu'un loot par ouverture.</li>" +
-        "<li><strong>Perdues (loot or)</strong> : la perte vient d'un doublon dans la même ouverture (si la case « loot or » est cochée).</li>" +
-        "<li><strong>Récupérées</strong> : peut dépasser l'objectif, le surplus est pris quand rien d'autre n'est utile dans l'ouverture.</li>" +
-        "</ul>";
+      html += "</tbody></table></div>" + '<p class="help-box" hidden></p>';
 
       if (res.rares.length) {
         html +=
@@ -904,10 +1043,16 @@ if (typeof document !== "undefined") {
             mode: state.mode,
             targets: targets,
             parts: currentParts(),
+            sources: currentSources(),
+            sets: sets,
             takeRare: $("take-rare").checked,
             relics: state.relics,
             runs: runs,
           });
+          if (!sets)
+            res.warnings.unshift(
+              "Composition des sets indisponible (sets.json non chargé) : 1 exemplaire par pièce est supposé.",
+            );
           renderResults(res);
         } catch (e) {
           $("results-body").innerHTML =
@@ -1111,7 +1256,10 @@ if (typeof document !== "undefined") {
             o.part = part;
           } else if (part) {
             errors.push(
-              label + ", ligne " + (j + 1) + " : indique le set de cette pièce.",
+              label +
+                ", ligne " +
+                (j + 1) +
+                " : indique le set de cette pièce.",
             );
           }
           if (!o.name)
@@ -1443,6 +1591,24 @@ if (typeof document !== "undefined") {
       updateStatus();
     }
 
+    /**
+     * Charge la composition des sets depuis sets.json.
+     * @returns {Promise<void>} résolue dans tous les cas ; `sets` reste à null en cas d'échec.
+     */
+    function loadSets() {
+      return fetch("sets.json")
+        .then(function (r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(function (d) {
+          sets = d && d.sets ? d.sets : null;
+        })
+        .catch(function () {
+          sets = null;
+        });
+    }
+
     function init() {
       document.querySelectorAll(".tab").forEach(function (t) {
         t.addEventListener("click", function () {
@@ -1488,11 +1654,16 @@ if (typeof document !== "undefined") {
         });
       });
       $("run").addEventListener("click", calculate);
+      $("results-body").addEventListener("click", toggleColumnHelp);
       $("add-set").addEventListener("click", addSet);
 
       // relics.json si la page est servie par un serveur, sinon copie intégrée
+      // sets.json est chargé avant, pour afficher les quantités dès le premier rendu.
       const embedded = JSON.parse($("default-data").textContent);
-      fetch("relics.json")
+      loadSets()
+        .then(function () {
+          return fetch("relics.json");
+        })
         .then(function (r) {
           if (!r.ok) throw new Error("HTTP " + r.status);
           return r.json();
