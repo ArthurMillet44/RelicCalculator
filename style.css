@@ -642,71 +642,6 @@ button.remove:hover:not(:disabled) {
   box-shadow: none;
 }
 
-.chips {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 0.84rem;
-}
-.chip {
-  position: relative;
-  gap: 8px;
-  padding: 5px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 2px;
-  color: var(--muted);
-  background: var(--card);
-  user-select: none;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s,
-    box-shadow 0.15s;
-}
-.chip input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-.chip::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  transform: rotate(45deg);
-  border: 1.5px solid currentColor;
-  transition:
-    background 0.15s,
-    box-shadow 0.15s;
-}
-.chip:hover {
-  border-color: var(--accent);
-  color: var(--text);
-}
-.chip:has(input:checked) {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent-strong);
-  font-weight: 600;
-  box-shadow: 0 0 10px var(--accent-soft);
-}
-.chip:has(input:checked)::before {
-  background: currentColor;
-  box-shadow: 0 0 6px var(--accent-glow);
-}
-.chip:has(input:disabled) {
-  opacity: 0.4;
-  cursor: not-allowed;
-  border-style: dashed;
-}
-.chip:has(input:disabled):hover {
-  border-color: var(--border-strong);
-  color: var(--muted);
-}
-.chip:has(input:focus-visible) {
-  outline: 2px solid var(--accent-strong);
-  outline-offset: 2px;
-}
 /* Relique choisie pour chaque pièce */
 
 .relic-picks {
@@ -725,11 +660,11 @@ button.remove:hover:not(:disabled) {
 .pick-part {
   min-width: 90px;
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text);
 }
 .pick-line select {
   flex: 1;

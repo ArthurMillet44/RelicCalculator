@@ -662,7 +662,6 @@ if (typeof document !== "undefined") {
       const box = $("primes");
       box.innerHTML = "";
       const catalog = catalogPrimes(data);
-      const present = presentKeys(data);
       const used = state.rows.map(function (r) {
         return r.prime;
       });
@@ -684,20 +683,6 @@ if (typeof document !== "undefined") {
             esc(p) +
             "</option>";
         });
-        let chips = "";
-        Object.keys(row.parts).forEach(function (part) {
-          const ok = !!present[partKey(row.prime, part)];
-          chips +=
-            '<label class="chip"><input type="checkbox" data-part="' +
-            esc(part) +
-            '"' +
-            (row.parts[part] && ok ? " checked" : "") +
-            (ok ? "" : " disabled") +
-            "> " +
-            esc(part) +
-            (ok ? "" : " (absente des reliques)") +
-            "</label>";
-        });
 
         el.innerHTML =
           '<select class="prime-pick">' +
@@ -707,9 +692,6 @@ if (typeof document !== "undefined") {
           row.sets +
           '"> sets</label>' +
           '<button type="button" class="secondary remove">Retirer</button>' +
-          '<div class="chips">' +
-          chips +
-          "</div>" +
           relicPicksHtml(row);
 
         el.querySelector(".prime-pick").addEventListener(
@@ -729,13 +711,6 @@ if (typeof document !== "undefined") {
           state.rows.splice(idx, 1);
           renderPrimes();
           renderRelics();
-        });
-        el.querySelectorAll("input[data-part]").forEach(function (cb) {
-          cb.addEventListener("change", function () {
-            row.parts[cb.getAttribute("data-part")] = cb.checked;
-            renderPrimes();
-            renderRelics();
-          });
         });
         el.querySelectorAll("select[data-pick]").forEach(function (sel) {
           sel.addEventListener("change", function () {
