@@ -824,6 +824,42 @@ tbody tr.total:hover {
 
 /* ---------- Messages ---------- */
 
+/* ---------- Bandeau de mise à jour ---------- */
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--accent-soft);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  border-radius: 2px;
+  padding: 10px 12px;
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+}
+.banner[hidden] {
+  display: none;
+}
+.banner p {
+  flex: 1;
+  margin: 0;
+}
+.banner-close {
+  flex: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 6px;
+  font-size: 1.3rem;
+  line-height: 1;
+  clip-path: none;
+}
+.banner-close:hover:not(:disabled) {
+  filter: none;
+  color: var(--accent-strong);
+}
+
 .warn {
   background: var(--warn-bg);
   color: var(--warn-text);
